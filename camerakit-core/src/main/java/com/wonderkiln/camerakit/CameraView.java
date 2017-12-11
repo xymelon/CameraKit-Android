@@ -1,21 +1,12 @@
 package com.wonderkiln.camerakit;
 
-import static com.wonderkiln.camerakit.CameraKit.Constants.FACING_BACK;
-import static com.wonderkiln.camerakit.CameraKit.Constants.FACING_FRONT;
-import static com.wonderkiln.camerakit.CameraKit.Constants.FLASH_AUTO;
-import static com.wonderkiln.camerakit.CameraKit.Constants.FLASH_OFF;
-import static com.wonderkiln.camerakit.CameraKit.Constants.FLASH_ON;
-import static com.wonderkiln.camerakit.CameraKit.Constants.FLASH_TORCH;
-import static com.wonderkiln.camerakit.CameraKit.Constants.PERMISSIONS_LAZY;
-import static com.wonderkiln.camerakit.CameraKit.Constants.PERMISSIONS_PICTURE;
-import static com.wonderkiln.camerakit.CameraKit.Constants.PERMISSIONS_STRICT;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
 import android.content.res.TypedArray;
+import android.hardware.Camera;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -25,19 +16,24 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.hardware.display.DisplayManagerCompat;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
 import android.view.WindowManager;
-
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GoogleApiAvailability;
-import com.google.android.gms.vision.text.TextRecognizer;
 import com.wonderkiln.camerakit.core.R;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.wonderkiln.camerakit.CameraKit.Constants.FACING_BACK;
+import static com.wonderkiln.camerakit.CameraKit.Constants.FACING_FRONT;
+import static com.wonderkiln.camerakit.CameraKit.Constants.FLASH_AUTO;
+import static com.wonderkiln.camerakit.CameraKit.Constants.FLASH_OFF;
+import static com.wonderkiln.camerakit.CameraKit.Constants.FLASH_ON;
+import static com.wonderkiln.camerakit.CameraKit.Constants.FLASH_TORCH;
+import static com.wonderkiln.camerakit.CameraKit.Constants.PERMISSIONS_LAZY;
+import static com.wonderkiln.camerakit.CameraKit.Constants.PERMISSIONS_PICTURE;
+import static com.wonderkiln.camerakit.CameraKit.Constants.PERMISSIONS_STRICT;
 
 public class CameraView extends CameraViewLayout {
 
@@ -157,8 +153,8 @@ public class CameraView extends CameraViewLayout {
             mDisplayOrientationDetector = new DisplayOrientationDetector(context) {
                 @Override
                 public void onDisplayOrDeviceOrientationChanged(int displayOrientation, int deviceOrientation) {
-                    mCameraImpl.setDisplayAndDeviceOrientation(displayOrientation, deviceOrientation);
-                    mPreviewImpl.setDisplayOrientation(displayOrientation);
+//                    mCameraImpl.setDisplayAndDeviceOrientation(displayOrientation, deviceOrientation);
+//                    mPreviewImpl.setDisplayOrientation(displayOrientation);
                 }
             };
 
@@ -442,22 +438,6 @@ public class CameraView extends CameraViewLayout {
         captureImage(null);
     }
 
-    public boolean setTextDetectionListener(final CameraKitEventCallback<CameraKitTextDetect> callback) throws GooglePlayServicesUnavailableException {
-        TextRecognizer textRecognizer = new TextRecognizer.Builder(getContext()).build();
-        textRecognizer.setProcessor(new TextProcessor(mEventDispatcher, callback));
-        int code = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(getContext().getApplicationContext());
-        if (code != ConnectionResult.SUCCESS) {
-            throw new GooglePlayServicesUnavailableException();
-        }
-
-        if (textRecognizer.isOperational()) {
-            mCameraImpl.setTextDetector(textRecognizer);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     public void captureImage(final CameraKitEventCallback<CameraKitImage> callback) {
         mCameraImpl.captureImage(new CameraImpl.ImageCapturedCallback() {
             @Override
@@ -538,6 +518,14 @@ public class CameraView extends CameraViewLayout {
 
     public void bindCameraKitListener(Object object) {
         mEventDispatcher.addBinding(object);
+    }
+
+    public void setPreviewCallback(Camera.PreviewCallback callback) {
+        mCameraImpl.setPreviewCallback(callback);
+    }
+
+    public int getPreviewRotation() {
+        return mCameraImpl.getPreviewRotation();
     }
 
 }

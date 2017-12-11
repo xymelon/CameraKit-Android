@@ -14,7 +14,6 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Html;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -23,14 +22,10 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.wonderkiln.camerakit.CameraKit;
-import com.wonderkiln.camerakit.CameraKitEventCallback;
-import com.wonderkiln.camerakit.CameraKitTextDetect;
 import com.wonderkiln.camerakit.CameraView;
 
-import com.wonderkiln.camerakit.GooglePlayServicesUnavailableException;
 import java.util.ArrayList;
 import java.util.List;
 

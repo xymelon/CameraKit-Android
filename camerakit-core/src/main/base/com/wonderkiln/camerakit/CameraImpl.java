@@ -1,9 +1,7 @@
 package com.wonderkiln.camerakit;
 
+import android.hardware.Camera;
 import android.support.annotation.Nullable;
-
-import com.google.android.gms.vision.Detector;
-import com.google.android.gms.vision.text.TextBlock;
 
 import java.io.File;
 
@@ -26,7 +24,6 @@ abstract class CameraImpl {
     abstract void setFlash(@Flash int flash);
     abstract void setFocus(@Focus int focus);
     abstract void setMethod(@CaptureMethod int method);
-    abstract void setTextDetector(Detector<TextBlock> detector);
 
     abstract void setVideoQuality(@VideoQuality int videoQuality);
     abstract void setVideoBitRate(int videoBitRate);
@@ -56,5 +53,9 @@ abstract class CameraImpl {
 
     @Nullable
     abstract CameraProperties getCameraProperties();
+
+    abstract void setPreviewCallback(Camera.PreviewCallback callback);
+
+    abstract int getPreviewRotation();
 
 }

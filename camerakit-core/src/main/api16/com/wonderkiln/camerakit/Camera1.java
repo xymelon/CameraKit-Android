@@ -1,5 +1,6 @@
 package com.wonderkiln.camerakit;
 
+import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.Camera;
@@ -12,9 +13,6 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
-
-import com.google.android.gms.vision.Detector;
-import com.google.android.gms.vision.text.TextBlock;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -41,6 +39,7 @@ public class Camera1 extends CameraImpl {
     private static final int FOCUS_AREA_SIZE_DEFAULT = 300;
     private static final int FOCUS_METERING_AREA_WEIGHT_DEFAULT = 1000;
     private static final int DELAY_MILLIS_BEFORE_RESETTING_FOCUS = 3000;
+    private static final int PREVIEW_BUFFER_POOL_SIZE = 3;
 
     private int mCameraId;
     private Camera mCamera;
@@ -74,21 +73,21 @@ public class Camera1 extends CameraImpl {
     @VideoQuality
     private int mVideoQuality;
 
-    private Detector<TextBlock> mTextDetector;
-
     private int mVideoBitRate;
 
     private boolean mLockVideoAspectRatio;
 
     private Handler mainHandler = new Handler(Looper.getMainLooper());
     private Handler mHandler = new Handler();
-    private FrameProcessingRunnable mFrameProcessor;
 
     private float mZoom = 1.f;
 
     private VideoCapturedCallback mVideoCallback;
 
     private final Object mCameraLock = new Object();
+
+    private byte[][] mBufferBytes;
+    private Camera.PreviewCallback mPreviewCallback;
 
     Camera1(EventDispatcher eventDispatcher, PreviewImpl preview) {
         super(eventDispatcher, preview);
@@ -120,32 +119,33 @@ public class Camera1 extends CameraImpl {
 
     @Override
     void start() {
-        setFacing(mFacing);
-        openCamera();
-        if (mPreview.isReady()) {
-            setDisplayAndDeviceOrientation();
-            setupPreview();
-            mCamera.startPreview();
-            mShowingPreview = true;
+        synchronized (mCameraLock) {
+            setFacing(mFacing);
+            openCamera();
+            if (mCamera != null && mPreview.isReady()) {
+                setDisplayAndDeviceOrientation();
+                setupPreview();
+                mCamera.startPreview();
+                mShowingPreview = true;
+            }
         }
     }
 
     @Override
     void stop() {
-        mHandler.removeCallbacksAndMessages(null);
-        if (mCamera != null) {
-            try {
-                mCamera.stopPreview();
-            } catch (Exception e) {
-                notifyErrorListener(e);
+        synchronized (mCameraLock) {
+            mHandler.removeCallbacksAndMessages(null);
+            if (mCamera != null) {
+                try {
+                    mCamera.stopPreview();
+                } catch (Exception e) {
+                    notifyErrorListener(e);
+                }
             }
-        }
-        mShowingPreview = false;
+            mShowingPreview = false;
 
-        releaseMediaRecorder();
-        releaseCamera();
-        if (mFrameProcessor != null) {
-            mFrameProcessor.cleanup();
+            releaseMediaRecorder();
+            releaseCamera();
         }
     }
 
@@ -265,11 +265,6 @@ public class Camera1 extends CameraImpl {
     }
 
     @Override
-    void setTextDetector(Detector<TextBlock> detector) {
-        this.mTextDetector = detector;
-    }
-
-    @Override
     void setVideoQuality(int videoQuality) {
         this.mVideoQuality = videoQuality;
     }
@@ -286,7 +281,7 @@ public class Camera1 extends CameraImpl {
             if (zoomFactor <= 1) {
                 mZoom = 1;
             } else {
-                mZoom= zoomFactor;
+                mZoom = zoomFactor;
             }
 
             if (mCameraParameters != null && mCameraParameters.isZoomSupported()) {
@@ -539,11 +534,24 @@ public class Camera1 extends CameraImpl {
 
             Iterator<Size> descendingSizes = sizes.descendingIterator();
             Size size;
-            while (descendingSizes.hasNext() && mCaptureSize == null) {
+            final Size previewSize = getPreviewResolution();
+            while (descendingSizes.hasNext()) {
                 size = descendingSizes.next();
-                if (targetRatio == null || targetRatio.matches(size)) {
+                if (targetRatio == null) {
                     mCaptureSize = size;
                     break;
+                }
+                if (targetRatio.matches(size)) {
+                    //return 'capture size' that closest to 'preview size'
+                    if (size.getWidth() >= previewSize.getHeight()
+                            && size.getHeight() >= previewSize.getWidth()) {
+                        mCaptureSize = size;
+                    } else {
+                        if (mCaptureSize == null) {
+                            mCaptureSize = size;
+                        }
+                        break;
+                    }
                 }
             }
         }
@@ -620,11 +628,23 @@ public class Camera1 extends CameraImpl {
 
             Iterator<Size> descendingSizes = sizes.descendingIterator();
             Size size;
-            while (descendingSizes.hasNext() && mPreviewSize == null) {
+            while (descendingSizes.hasNext()) {
                 size = descendingSizes.next();
-                if (targetRatio == null || targetRatio.matches(size)) {
+                if (targetRatio == null) {
                     mPreviewSize = size;
                     break;
+                }
+                if (targetRatio.matches(size)) {
+                    //return 'preview size' that closest to screen size.
+                    if (size.getWidth() >= CameraKit.Internal.screenHeight
+                            && size.getHeight() >= CameraKit.Internal.screenWidth) {
+                        mPreviewSize = size;
+                    } else {
+                        if (mPreviewSize == null) {
+                            mPreviewSize = size;
+                        }
+                        break;
+                    }
                 }
             }
         }
@@ -656,6 +676,16 @@ public class Camera1 extends CameraImpl {
         return mCameraProperties;
     }
 
+    @Override
+    void setPreviewCallback(Camera.PreviewCallback callback) {
+        mPreviewCallback = callback;
+    }
+
+    @Override
+    int getPreviewRotation() {
+        return calculatePreviewRotation();
+    }
+
     // Internal:
 
     private void openCamera() {
@@ -682,11 +712,6 @@ public class Camera1 extends CameraImpl {
             }
 
             mEventDispatcher.dispatch(new CameraKitEvent(CameraKitEvent.TYPE_CAMERA_OPEN));
-
-            if (mTextDetector != null) {
-                mFrameProcessor = new FrameProcessingRunnable(mTextDetector, mPreviewSize, mCamera);
-                mFrameProcessor.start();
-            }
         }
     }
 
@@ -695,10 +720,33 @@ public class Camera1 extends CameraImpl {
             try {
                 mCamera.reconnect();
                 mCamera.setPreviewDisplay(mPreview.getSurfaceHolder());
+                setupPreviewCallback();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private void setupPreviewCallback() {
+        if (mBufferBytes == null) {
+            final int size = mPreviewSize.getWidth() * mPreviewSize.getHeight()
+                    * ImageFormat.getBitsPerPixel(mCameraParameters.getPreviewFormat()) / 8;
+            mBufferBytes = new byte[PREVIEW_BUFFER_POOL_SIZE][size];
+        }
+        for (byte[] buffer : mBufferBytes) {
+            mCamera.addCallbackBuffer(buffer);
+        }
+        mCamera.setPreviewCallbackWithBuffer(new Camera.PreviewCallback() {
+            @Override
+            public void onPreviewFrame(final byte[] data, final Camera camera) {
+                if (mPreviewCallback != null) {
+                    mPreviewCallback.onPreviewFrame(data, camera);
+                }
+                if (mCamera != null) {
+                    mCamera.addCallbackBuffer(data);
+                }
+            }
+        });
     }
 
     private void releaseCamera() {
@@ -713,9 +761,6 @@ public class Camera1 extends CameraImpl {
                 mVideoSize = null;
 
                 mEventDispatcher.dispatch(new CameraKitEvent(CameraKitEvent.TYPE_CAMERA_CLOSE));
-                if (mFrameProcessor != null) {
-                    mFrameProcessor.release();
-                }
             }
         }
     }
