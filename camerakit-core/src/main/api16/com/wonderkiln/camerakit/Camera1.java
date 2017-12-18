@@ -53,7 +53,7 @@ public class Camera1 extends CameraImpl {
     private Camera.AutoFocusCallback mAutofocusCallback;
     private boolean capturingImage = false;
 
-    private boolean mShowingPreview;
+    private volatile boolean mShowingPreview;
     private boolean mRecording;
     private int mDisplayOrientation;
     private int mDeviceOrientation;
@@ -95,18 +95,20 @@ public class Camera1 extends CameraImpl {
         preview.setCallback(new PreviewImpl.Callback() {
             @Override
             public void onSurfaceChanged() {
-                if (mCamera != null) {
-                    if (mShowingPreview) {
-                        mCamera.stopPreview();
-                        mShowingPreview = false;
-                    }
+                synchronized (mCameraLock) {
+                    if (mCamera != null) {
+                        if (mShowingPreview) {
+                            mCamera.stopPreview();
+                            mShowingPreview = false;
+                        }
 
-                    setDisplayAndDeviceOrientation();
-                    setupPreview();
+                        setDisplayAndDeviceOrientation();
+                        setupPreview();
 
-                    if (!mShowingPreview) {
-                        mCamera.startPreview();
-                        mShowingPreview = true;
+                        if (!mShowingPreview) {
+                            mCamera.startPreview();
+                            mShowingPreview = true;
+                        }
                     }
                 }
             }
@@ -334,63 +336,67 @@ public class Camera1 extends CameraImpl {
 
     @Override
     void setFocusArea(float x, float y) {
-        synchronized (mCameraLock) {
-            if (mCamera != null) {
-                Camera.Parameters parameters = getCameraParameters();
-                if (parameters == null) return;
+        try {
+            synchronized (mCameraLock) {
+                if (mCamera != null && mShowingPreview) {
+                    Camera.Parameters parameters = getCameraParameters();
+                    if (parameters == null) return;
 
-                String focusMode = parameters.getFocusMode();
-                Rect rect = calculateFocusArea(x, y);
+                    String focusMode = parameters.getFocusMode();
+                    Rect rect = calculateFocusArea(x, y);
 
-                List<Camera.Area> meteringAreas = new ArrayList<>();
-                meteringAreas.add(new Camera.Area(rect, getFocusMeteringAreaWeight()));
-                if (parameters.getMaxNumFocusAreas() != 0 && focusMode != null &&
-                        (focusMode.equals(Camera.Parameters.FOCUS_MODE_AUTO) ||
-                                focusMode.equals(Camera.Parameters.FOCUS_MODE_MACRO) ||
-                                focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE) ||
-                                focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO))
-                        ) {
-                    parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-                    parameters.setFocusAreas(meteringAreas);
-                    if (parameters.getMaxNumMeteringAreas() > 0) {
-                        parameters.setMeteringAreas(meteringAreas);
-                    }
-                    if (!parameters.getSupportedFocusModes().contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
-                        return; //cannot autoFocus
-                    }
-                    mCamera.setParameters(parameters);
-                    mCamera.autoFocus(new Camera.AutoFocusCallback() {
-                        @Override
-                        public void onAutoFocus(boolean success, Camera camera) {
-                            resetFocus(success, camera);
+                    List<Camera.Area> meteringAreas = new ArrayList<>();
+                    meteringAreas.add(new Camera.Area(rect, getFocusMeteringAreaWeight()));
+                    if (parameters.getMaxNumFocusAreas() != 0 && focusMode != null &&
+                            (focusMode.equals(Camera.Parameters.FOCUS_MODE_AUTO) ||
+                                    focusMode.equals(Camera.Parameters.FOCUS_MODE_MACRO) ||
+                                    focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE) ||
+                                    focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO))
+                            ) {
+                        parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+                        parameters.setFocusAreas(meteringAreas);
+                        if (parameters.getMaxNumMeteringAreas() > 0) {
+                            parameters.setMeteringAreas(meteringAreas);
                         }
-                    });
-                } else if (parameters.getMaxNumMeteringAreas() > 0) {
-                    if (!parameters.getSupportedFocusModes().contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
-                        return; //cannot autoFocus
-                    }
-                    parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-                    parameters.setFocusAreas(meteringAreas);
-                    parameters.setMeteringAreas(meteringAreas);
-
-                    mCamera.setParameters(parameters);
-                    mCamera.autoFocus(new Camera.AutoFocusCallback() {
-                        @Override
-                        public void onAutoFocus(boolean success, Camera camera) {
-                            resetFocus(success, camera);
+                        if (!parameters.getSupportedFocusModes().contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
+                            return; //cannot autoFocus
                         }
-                    });
-                } else {
-                    mCamera.autoFocus(new Camera.AutoFocusCallback() {
-                        @Override
-                        public void onAutoFocus(boolean success, Camera camera) {
-                            if (mAutofocusCallback != null) {
-                                mAutofocusCallback.onAutoFocus(success, camera);
+                        mCamera.setParameters(parameters);
+                        mCamera.autoFocus(new Camera.AutoFocusCallback() {
+                            @Override
+                            public void onAutoFocus(boolean success, Camera camera) {
+                                resetFocus(success, camera);
                             }
+                        });
+                    } else if (parameters.getMaxNumMeteringAreas() > 0) {
+                        if (!parameters.getSupportedFocusModes().contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
+                            return; //cannot autoFocus
                         }
-                    });
+                        parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+                        parameters.setFocusAreas(meteringAreas);
+                        parameters.setMeteringAreas(meteringAreas);
+
+                        mCamera.setParameters(parameters);
+                        mCamera.autoFocus(new Camera.AutoFocusCallback() {
+                            @Override
+                            public void onAutoFocus(boolean success, Camera camera) {
+                                resetFocus(success, camera);
+                            }
+                        });
+                    } else {
+                        mCamera.autoFocus(new Camera.AutoFocusCallback() {
+                            @Override
+                            public void onAutoFocus(boolean success, Camera camera) {
+                                if (mAutofocusCallback != null) {
+                                    mAutofocusCallback.onAutoFocus(success, camera);
+                                }
+                            }
+                        });
+                    }
                 }
             }
+        } catch (Exception e) {
+            //do nothing.
         }
     }
 
@@ -401,6 +407,10 @@ public class Camera1 extends CameraImpl {
 
     @Override
     void captureImage(final ImageCapturedCallback callback) {
+        if (!mShowingPreview) {
+            //If camera hasn't start preview, then return.
+            return;
+        }
         switch (mMethod) {
             case METHOD_STANDARD:
                 synchronized (mCameraLock) {
