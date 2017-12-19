@@ -213,7 +213,7 @@ public class Camera1 extends CameraImpl {
                     }
                 }
 
-                mCamera.setParameters(mCameraParameters);
+                setParameters(mCameraParameters);
             } else {
                 mFlash = flash;
             }
@@ -289,7 +289,7 @@ public class Camera1 extends CameraImpl {
             if (mCameraParameters != null && mCameraParameters.isZoomSupported()) {
                 int zoomPercent = (int) (mZoom * 100);
                 mCameraParameters.setZoom(getZoomForPercent(zoomPercent));
-                mCamera.setParameters(mCameraParameters);
+                setParameters(mCameraParameters);
 
                 float maxZoom = mCameraParameters.getZoomRatios().get(mCameraParameters.getZoomRatios().size() - 1) / 100f;
                 if (mZoom > maxZoom) mZoom = maxZoom;
@@ -361,7 +361,7 @@ public class Camera1 extends CameraImpl {
                         if (!parameters.getSupportedFocusModes().contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
                             return; //cannot autoFocus
                         }
-                        mCamera.setParameters(parameters);
+                        setParameters(parameters);
                         mCamera.autoFocus(new Camera.AutoFocusCallback() {
                             @Override
                             public void onAutoFocus(boolean success, Camera camera) {
@@ -376,7 +376,7 @@ public class Camera1 extends CameraImpl {
                         parameters.setFocusAreas(meteringAreas);
                         parameters.setMeteringAreas(meteringAreas);
 
-                        mCamera.setParameters(parameters);
+                        setParameters(parameters);
                         mCamera.autoFocus(new Camera.AutoFocusCallback() {
                             @Override
                             public void onAutoFocus(boolean success, Camera camera) {
@@ -423,7 +423,7 @@ public class Camera1 extends CameraImpl {
                         // Set the captureRotation right before taking a picture so it's accurate
                         int captureRotation = calculateCaptureRotation();
                         mCameraParameters.setRotation(captureRotation);
-                        mCamera.setParameters(mCameraParameters);
+                        setParameters(mCameraParameters);
 
                         mCamera.takePicture(null, null, null,
                                 new Camera.PictureCallback() {
@@ -775,6 +775,14 @@ public class Camera1 extends CameraImpl {
         }
     }
 
+    private void setParameters(Camera.Parameters params) {
+        try {
+            mCamera.setParameters(params);
+        } catch (Exception e) {
+            notifyErrorListener(e);
+        }
+    }
+
     private int calculatePreviewRotation() {
         if (mCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
             int result = (mCameraInfo.orientation + mDisplayOrientation) % 360;
@@ -910,7 +918,7 @@ public class Camera1 extends CameraImpl {
             setZoom(mZoom);
         }
 
-        mCamera.setParameters(mCameraParameters);
+        setParameters(mCameraParameters);
 
         if (haveToReadjust && currentTry < 100) {
             try {
@@ -1119,7 +1127,7 @@ public class Camera1 extends CameraImpl {
                             parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
                             parameters.setFocusAreas(null);
                             parameters.setMeteringAreas(null);
-                            mCamera.setParameters(parameters);
+                            setParameters(parameters);
                         }
 
                         if (mAutofocusCallback != null) {
