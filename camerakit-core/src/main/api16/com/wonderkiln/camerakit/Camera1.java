@@ -121,7 +121,7 @@ public class Camera1 extends CameraImpl {
 
     @Override
     void start() {
-        synchronized (mCameraLock) {
+        try {
             setFacing(mFacing);
             openCamera();
             if (mCamera != null && mPreview.isReady()) {
@@ -130,12 +130,14 @@ public class Camera1 extends CameraImpl {
                 mCamera.startPreview();
                 mShowingPreview = true;
             }
+        } catch (Exception e) {
+            //do nothing.
         }
     }
 
     @Override
     void stop() {
-        synchronized (mCameraLock) {
+        try {
             mHandler.removeCallbacksAndMessages(null);
             if (mCamera != null) {
                 try {
@@ -148,6 +150,8 @@ public class Camera1 extends CameraImpl {
 
             releaseMediaRecorder();
             releaseCamera();
+        } catch (Exception e) {
+            //do nothing.
         }
     }
 
