@@ -19,6 +19,7 @@ import android.util.AttributeSet;
 import android.view.Display;
 import android.view.Surface;
 import android.view.WindowManager;
+
 import com.wonderkiln.camerakit.core.R;
 
 import java.io.File;
@@ -295,7 +296,9 @@ public class CameraView extends CameraViewLayout {
     @Override
     protected void onTapToFocus(float x, float y) {
         if (mFocus == CameraKit.Constants.FOCUS_TAP || mFocus == CameraKit.Constants.FOCUS_TAP_WITH_MARKER) {
-            focusMarkerLayout.focus(x, y);
+            if (mFocus == CameraKit.Constants.FOCUS_TAP_WITH_MARKER) {
+                focusMarkerLayout.focus(x, y);
+            }
 
             float px = x - getPreviewImpl().getX();
             float py = y - getPreviewImpl().getY();
