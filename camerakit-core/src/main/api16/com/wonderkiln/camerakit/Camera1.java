@@ -95,21 +95,25 @@ public class Camera1 extends CameraImpl {
         preview.setCallback(new PreviewImpl.Callback() {
             @Override
             public void onSurfaceChanged() {
-                synchronized (mCameraLock) {
-                    if (mCamera != null) {
-                        if (mShowingPreview) {
-                            mCamera.stopPreview();
-                            mShowingPreview = false;
-                        }
+                try {
+                    synchronized (mCameraLock) {
+                        if (mCamera != null) {
+                            if (mShowingPreview) {
+                                mCamera.stopPreview();
+                                mShowingPreview = false;
+                            }
 
-                        setDisplayAndDeviceOrientation();
-                        setupPreview();
+                            setDisplayAndDeviceOrientation();
+                            setupPreview();
 
-                        if (!mShowingPreview) {
-                            mCamera.startPreview();
-                            mShowingPreview = true;
+                            if (!mShowingPreview) {
+                                mCamera.startPreview();
+                                mShowingPreview = true;
+                            }
                         }
                     }
+                } catch (Exception e) {
+                    //do nothing.
                 }
             }
         });
