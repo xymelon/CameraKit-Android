@@ -531,4 +531,8 @@ public class CameraView extends CameraViewLayout {
         return mCameraImpl.getPreviewRotation();
     }
 
+    public void setRequestedFps(float requestedFps) {
+        mCameraImpl.setRequestedFps(requestedFps);
+    }
+
 }

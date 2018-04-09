@@ -89,6 +89,8 @@ public class Camera1 extends CameraImpl {
     private byte[][] mBufferBytes;
     private Camera.PreviewCallback mPreviewCallback;
 
+    private float mRequestedFps = 30.0f;
+
     Camera1(EventDispatcher eventDispatcher, PreviewImpl preview) {
         super(eventDispatcher, preview);
 
@@ -704,6 +706,11 @@ public class Camera1 extends CameraImpl {
         return calculatePreviewRotation();
     }
 
+    @Override
+    public void setRequestedFps(float requestedFps) {
+        mRequestedFps = requestedFps;
+    }
+
     // Internal:
 
     private void openCamera() {
@@ -880,6 +887,13 @@ public class Camera1 extends CameraImpl {
                     invertPreviewSizes ? getPreviewResolution().getHeight() : getPreviewResolution().getWidth(),
                     invertPreviewSizes ? getPreviewResolution().getWidth() : getPreviewResolution().getHeight()
             );
+
+            final int[] previewFpsRange = selectPreviewFpsRange(mCamera, mRequestedFps);
+            if (previewFpsRange != null) {
+                mCameraParameters.setPreviewFpsRange(
+                        previewFpsRange[Camera.Parameters.PREVIEW_FPS_MIN_INDEX],
+                        previewFpsRange[Camera.Parameters.PREVIEW_FPS_MAX_INDEX]);
+            }
 
             try {
                 mCamera.setParameters(mCameraParameters);
@@ -1164,4 +1178,38 @@ public class Camera1 extends CameraImpl {
 
         return new Rect(left - 1000, top - 1000, right - 1000, bottom - 1000);
     }
+
+    /**
+     * Selects the most suitable preview frames per second range, given the desired frames per
+     * second.
+     *
+     * @param camera            the camera to select a frames per second range from
+     * @param desiredPreviewFps the desired frames per second for the camera preview frames
+     * @return the selected preview frames per second range
+     */
+    private static int[] selectPreviewFpsRange(Camera camera, float desiredPreviewFps) {
+        // The camera API uses integers scaled by a factor of 1000 instead of floating-point frame
+        // rates.
+        int desiredPreviewFpsScaled = (int) (desiredPreviewFps * 1000.0f);
+
+        // The method for selecting the best range is to minimize the sum of the differences between
+        // the desired value and the upper and lower bounds of the range.  This may select a range
+        // that the desired value is outside of, but this is often preferred.  For example, if the
+        // desired frame rate is 29.97, the range (30, 30) is probably more desirable than the
+        // range (15, 30).
+        int[] selectedFpsRange = null;
+        int minDiff = Integer.MAX_VALUE;
+        List<int[]> previewFpsRangeList = camera.getParameters().getSupportedPreviewFpsRange();
+        for (int[] range : previewFpsRangeList) {
+            int deltaMin = desiredPreviewFpsScaled - range[Camera.Parameters.PREVIEW_FPS_MIN_INDEX];
+            int deltaMax = desiredPreviewFpsScaled - range[Camera.Parameters.PREVIEW_FPS_MAX_INDEX];
+            int diff = Math.abs(deltaMin) + Math.abs(deltaMax);
+            if (diff < minDiff) {
+                selectedFpsRange = range;
+                minDiff = diff;
+            }
+        }
+        return selectedFpsRange;
+    }
+
 }

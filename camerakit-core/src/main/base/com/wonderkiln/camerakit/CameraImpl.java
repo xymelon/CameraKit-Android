@@ -58,4 +58,6 @@ abstract class CameraImpl {
 
     abstract int getPreviewRotation();
 
+    abstract void setRequestedFps(float requestedFps);
+
 }
