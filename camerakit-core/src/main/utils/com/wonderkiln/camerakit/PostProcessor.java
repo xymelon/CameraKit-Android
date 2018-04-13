@@ -76,7 +76,7 @@ public class PostProcessor {
         BitmapFactory.decodeByteArray(picture, 0, picture.length, options);
 
         BitmapFactory.Options regionOptions = new BitmapFactory.Options();
-        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        regionOptions.inPreferredConfig = Bitmap.Config.ARGB_8888;
 
         return BitmapRegionDecoder.newInstance(
                 picture,
