@@ -272,7 +272,13 @@ public class CameraView extends CameraViewLayout {
             return;
         }
         mIsStarted = false;
-        mCameraImpl.stop();
+
+        sWorkerHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mCameraImpl.stop();
+            }
+        }, 100);
     }
 
 
