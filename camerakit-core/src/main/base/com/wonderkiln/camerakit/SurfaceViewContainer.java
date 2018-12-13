@@ -10,6 +10,7 @@ import android.widget.FrameLayout;
 public class SurfaceViewContainer extends FrameLayout {
 
     private Size mPreviewSize;
+    private int mDisplayOrientation;
 
     public SurfaceViewContainer(@NonNull Context context) {
         super(context);
@@ -25,47 +26,46 @@ public class SurfaceViewContainer extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        final int width = resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec);
-        final int height = resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec);
-        setMeasuredDimension(width, height);
-    }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-    @Override
-    protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        if (changed && getChildCount() > 0) {
-            layoutChild(r - l, b - t);
-        }
-    }
+        // Measure the Child View
+        if (mPreviewSize != null && getChildCount() > 0) {
+            int previewWidth;
+            int previewHeight;
+            if (mDisplayOrientation % 180 == 0) {
+                //portrait
+                previewWidth = mPreviewSize.getWidth();
+                previewHeight = mPreviewSize.getHeight();
+            } else {
+                //landscape
+                previewWidth = mPreviewSize.getHeight();
+                previewHeight = mPreviewSize.getWidth();
+            }
 
-    private void layoutChild(int width, int height) {
-        final View child = getChildAt(0);
+            final int width = getMeasuredWidth();
+            final int height = getMeasuredHeight();
 
-        int previewWidth = width;
-        int previewHeight = height;
-        if (mPreviewSize != null) {
-            previewWidth = mPreviewSize.getWidth();
-            previewHeight = mPreviewSize.getHeight();
-        }
-
-        if (width * previewHeight > height * previewWidth) {
-            final int scaledChildHeight = previewHeight * width / previewWidth;
-            child.layout(0, (height - scaledChildHeight) / 2, width, (height + scaledChildHeight) / 2);
-        } else {
-            final int scaledChildWidth = previewWidth * height / previewHeight;
-            child.layout((width - scaledChildWidth) / 2, 0, (width + scaledChildWidth) / 2, height);
+            final View child = getChildAt(0);
+            if (width * previewHeight > height * previewWidth) {
+                child.measure(
+                        MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(width * previewHeight / previewWidth,
+                                MeasureSpec.EXACTLY));
+            } else {
+                child.measure(
+                        MeasureSpec.makeMeasureSpec(height * previewWidth / previewHeight,
+                                MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
+            }
         }
     }
 
     public void setPreviewSize(Size previewSize) {
         this.mPreviewSize = previewSize;
-        if (getChildCount() > 0) {
-            post(new Runnable() {
-                @Override
-                public void run() {
-                    layoutChild(getWidth(), getHeight());
-                }
-            });
-        }
+    }
+
+    public void setDisplayOrientation(int displayOrientation) {
+        mDisplayOrientation = displayOrientation;
     }
 
 }

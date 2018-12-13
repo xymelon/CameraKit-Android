@@ -154,8 +154,8 @@ public class CameraView extends CameraViewLayout {
             mDisplayOrientationDetector = new DisplayOrientationDetector(context) {
                 @Override
                 public void onDisplayOrDeviceOrientationChanged(int displayOrientation, int deviceOrientation) {
-//                    mCameraImpl.setDisplayAndDeviceOrientation(displayOrientation, deviceOrientation);
-//                    mPreviewImpl.setDisplayOrientation(displayOrientation);
+                    mCameraImpl.setDisplayAndDeviceOrientation(displayOrientation, deviceOrientation);
+                    mPreviewImpl.setDisplayOrientation(displayOrientation);
                 }
             };
 

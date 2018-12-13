@@ -12,8 +12,7 @@
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginBottom="130dp">
+            android:layout_height="match_parent">
 
             <com.wonderkiln.camerakit.CameraView xmlns:app="http://schemas.android.com/apk/res-auto"
                 android:id="@+id/camera"
@@ -27,8 +26,7 @@
                 app:ckJpegQuality="100"
                 app:ckMethod="standard"
                 app:ckPinchToZoom="true"
-                app:ckVideoQuality="highest"
-                app:ckZoom="2.0" />
+                app:ckVideoQuality="highest" />
 
         </FrameLayout>
 
@@ -41,9 +39,8 @@
 
         <com.wonderkiln.camerakit.demo.CameraControls xmlns:app="http://schemas.android.com/apk/res-auto"
             android:layout_width="match_parent"
-            android:layout_height="130dp"
+            android:layout_height="100dp"
             android:layout_gravity="bottom"
-            android:background="@color/colorPrimaryDark"
             android:elevation="7dp"
             app:camera="@+id/camera"
             app:cover="@+id/blackCover" />
