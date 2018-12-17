@@ -2,6 +2,7 @@ package com.wonderkiln.camerakit;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.support.annotation.Nullable;
 
 public class CameraKitImage extends CameraKitEvent {
 
@@ -12,11 +13,16 @@ public class CameraKitImage extends CameraKitEvent {
         this.jpeg = jpeg;
     }
 
+    @Nullable
     public byte[] getJpeg() {
         return jpeg;
     }
 
+    @Nullable
     public Bitmap getBitmap() {
+        if (jpeg == null) {
+            return null;
+        }
         return BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length);
     }
 

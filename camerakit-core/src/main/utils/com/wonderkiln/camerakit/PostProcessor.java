@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BitmapRegionDecoder;
 import android.graphics.Rect;
+import android.support.annotation.Nullable;
 import android.support.media.ExifInterface;
 
 import java.io.ByteArrayInputStream;
@@ -35,11 +36,12 @@ public class PostProcessor {
         this.cropAspectRatio = aspectRatio;
     }
 
+    @Nullable
     public byte[] getJpeg() {
         Bitmap bitmap;
         try {
             bitmap = getBitmap();
-        } catch (IOException e) {
+        } catch (Exception e) {
             return null;
         }
 
