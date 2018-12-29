@@ -362,7 +362,7 @@ public class Camera1 extends CameraImpl {
                                     focusMode.equals(Camera.Parameters.FOCUS_MODE_MACRO) ||
                                     focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE) ||
                                     focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO))
-                            ) {
+                    ) {
                         parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
                         parameters.setFocusAreas(meteringAreas);
                         if (parameters.getMaxNumMeteringAreas() > 0) {
@@ -808,21 +808,12 @@ public class Camera1 extends CameraImpl {
     }
 
     private int calculateCaptureRotation() {
-        int captureRotation = 0;
+        int captureRotation;
         if (mCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
             captureRotation = (mCameraInfo.orientation + mDisplayOrientation) % 360;
         } else {  // back-facing camera
             captureRotation = (mCameraInfo.orientation - mDisplayOrientation + 360) % 360;
         }
-
-        // Accommodate for any extra device rotation relative to fixed screen orientations
-        // (e.g. activity fixed in portrait, but user took photo/video in landscape)
-        if (mCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-            captureRotation = ((captureRotation - (mDisplayOrientation - mDeviceOrientation)) + 360) % 360;
-        } else {  // back-facing camera
-            captureRotation = (captureRotation + (mDisplayOrientation - mDeviceOrientation) + 360) % 360;
-        }
-
         return captureRotation;
     }
 
