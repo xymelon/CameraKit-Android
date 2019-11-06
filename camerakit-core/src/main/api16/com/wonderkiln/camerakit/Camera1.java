@@ -114,8 +114,7 @@ public class Camera1 extends CameraImpl {
                             }
                         }
                     }
-                } catch (Exception e) {
-                    //do nothing.
+                } catch (Exception ignored) {
                 }
             }
         });
@@ -546,11 +545,10 @@ public class Camera1 extends CameraImpl {
                 sizes.add(new Size(size.width, size.height));
             }
 
-            TreeSet<AspectRatio> aspectRatios = findCommonAspectRatios(
+            AspectRatio targetRatio = findCommonAspectRatios(
                     mCameraParameters.getSupportedPreviewSizes(),
                     mCameraParameters.getSupportedPictureSizes()
             );
-            AspectRatio targetRatio = aspectRatios.size() > 0 ? aspectRatios.last() : null;
 
             Iterator<Size> descendingSizes = sizes.descendingIterator();
             Size size;
@@ -592,11 +590,10 @@ public class Camera1 extends CameraImpl {
                 sizes.add(new Size(size.width, size.height));
             }
 
-            TreeSet<AspectRatio> aspectRatios = findCommonAspectRatios(
+            AspectRatio targetRatio = findCommonAspectRatios(
                     mCameraParameters.getSupportedPreviewSizes(),
                     mCameraParameters.getSupportedVideoSizes()
             );
-            AspectRatio targetRatio = aspectRatios.size() > 0 ? aspectRatios.last() : null;
 
             Iterator<Size> descendingSizes = sizes.descendingIterator();
             Size size;
@@ -620,32 +617,17 @@ public class Camera1 extends CameraImpl {
                 sizes.add(new Size(size.width, size.height));
             }
 
-            TreeSet<AspectRatio> aspectRatios = findCommonAspectRatios(
+            AspectRatio targetRatio = findCommonAspectRatios(
                     mCameraParameters.getSupportedPreviewSizes(),
                     mCameraParameters.getSupportedPictureSizes()
             );
 
-            AspectRatio targetRatio = null;
-
-            if (mLockVideoAspectRatio) {
-                TreeSet<AspectRatio> videoAspectRatios = findCommonAspectRatios(
-                        mCameraParameters.getSupportedPreviewSizes(),
-                        mCameraParameters.getSupportedPictureSizes()
-                );
-
-                Iterator<AspectRatio> descendingIterator = aspectRatios.descendingIterator();
-                while (targetRatio == null && descendingIterator.hasNext()) {
-                    AspectRatio ratio = descendingIterator.next();
-                    if (videoAspectRatios.contains(ratio)) {
-                        targetRatio = ratio;
-                    }
-                }
+            int viewWidth = CameraKit.Internal.screenWidth;
+            int viewHeight = CameraKit.Internal.screenHeight;
+            if (mPreview != null && mPreview.getWidth() > 0 && mPreview.getHeight() > 0) {
+                viewWidth = mPreview.getWidth();
+                viewHeight = mPreview.getHeight();
             }
-
-            if (targetRatio == null) {
-                targetRatio = aspectRatios.size() > 0 ? aspectRatios.last() : null;
-            }
-
             Iterator<Size> descendingSizes = sizes.descendingIterator();
             Size size;
             while (descendingSizes.hasNext()) {
@@ -655,9 +637,8 @@ public class Camera1 extends CameraImpl {
                     break;
                 }
                 if (targetRatio.matches(size)) {
-                    //return 'preview size' that closest to screen size.
-                    if (size.getWidth() >= CameraKit.Internal.screenHeight
-                            && size.getHeight() >= CameraKit.Internal.screenWidth) {
+                    //return 'preview size' that closest to view size.
+                    if (size.getWidth() >= viewHeight && size.getHeight() >= viewWidth) {
                         mPreviewSize = size;
                     } else {
                         if (mPreviewSize == null) {
@@ -950,41 +931,42 @@ public class Camera1 extends CameraImpl {
                 mCameraParameters.getHorizontalViewAngle());
     }
 
-    private TreeSet<AspectRatio> findCommonAspectRatios(List<Camera.Size> previewSizes, List<Camera.Size> pictureSizes) {
-        Set<AspectRatio> previewAspectRatios = new HashSet<>();
+    private AspectRatio findCommonAspectRatios(List<Camera.Size> previewSizes, List<Camera.Size> pictureSizes) {
+        //1、获取预览size比率
+        final Set<AspectRatio> previewAspectRatios = new HashSet<>();
         for (Camera.Size size : previewSizes) {
-            AspectRatio deviceRatio = AspectRatio.of(CameraKit.Internal.screenHeight, CameraKit.Internal.screenWidth);
             AspectRatio previewRatio = AspectRatio.of(size.width, size.height);
-            if (deviceRatio.equals(previewRatio)) {
-                previewAspectRatios.add(previewRatio);
-            }
+            previewAspectRatios.add(previewRatio);
         }
-
-        Set<AspectRatio> captureAspectRatios = new HashSet<>();
+        //2、获取拍照size比率
+        final Set<AspectRatio> captureAspectRatios = new HashSet<>();
         for (Camera.Size size : pictureSizes) {
             captureAspectRatios.add(AspectRatio.of(size.width, size.height));
         }
-
-        TreeSet<AspectRatio> output = new TreeSet<>();
-        if (previewAspectRatios.size() == 0) {
-            // if no common aspect ratios
-            Camera.Size maxSize = previewSizes.get(0);
-            AspectRatio maxPreviewAspectRatio = AspectRatio.of(maxSize.width, maxSize.height);
-            for (AspectRatio aspectRatio : captureAspectRatios) {
-                if (aspectRatio.equals(maxPreviewAspectRatio)) {
-                    output.add(aspectRatio);
-                }
-            }
-        } else {
-            // if common aspect ratios exist
-            for (AspectRatio aspectRatio : previewAspectRatios) {
-                if (captureAspectRatios.contains(aspectRatio)) {
-                    output.add(aspectRatio);
-                }
+        //3、获取预览size和拍照size相同比率
+        final TreeSet<AspectRatio> commonPreviewAndCaptureRatios = new TreeSet<>();
+        for (AspectRatio aspectRatio : previewAspectRatios) {
+            if (captureAspectRatios.contains(aspectRatio)) {
+                commonPreviewAndCaptureRatios.add(aspectRatio);
             }
         }
-
-        return output;
+        //4、寻找与预览view比率最接近的比率
+        AspectRatio deviceRatio;
+        if (mPreview == null || mPreview.getWidth() == 0 || mPreview.getHeight() == 0) {
+            deviceRatio = AspectRatio.of(CameraKit.Internal.screenHeight, CameraKit.Internal.screenWidth);
+        } else {
+            deviceRatio = AspectRatio.of(mPreview.getHeight(), mPreview.getWidth());
+        }
+        AspectRatio closestRatio = commonPreviewAndCaptureRatios.first();
+        float min = Float.MAX_VALUE;
+        for (AspectRatio aspectRatio : commonPreviewAndCaptureRatios) {
+            final float currentMin = Math.abs(deviceRatio.toFloat() - aspectRatio.toFloat());
+            if (currentMin < min) {
+                min = currentMin;
+                closestRatio = aspectRatio;
+            }
+        }
+        return closestRatio;
     }
 
     private boolean prepareMediaRecorder(File videoFile) throws IOException {
