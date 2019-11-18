@@ -840,24 +840,25 @@ public class Camera1 extends CameraImpl {
         boolean haveToReadjust = false;
         Camera.Parameters resolutionLess = mCamera.getParameters();
 
-        if (getPreviewResolution() != null) {
+        final Size previewSize = getPreviewResolution();
+        if (previewSize != null) {
             if (mDeviceOrientation == 0 || mDeviceOrientation == 180) {
                 mPreview.setPreviewParameters(
-                        getPreviewResolution().getWidth(),
-                        getPreviewResolution().getHeight(),
+                        previewSize.getWidth(),
+                        previewSize.getHeight(),
                         mCameraParameters.getPreviewFormat()
                 );
             } else {
                 mPreview.setPreviewParameters(
-                        getPreviewResolution().getHeight(),
-                        getPreviewResolution().getWidth(),
+                        previewSize.getHeight(),
+                        previewSize.getWidth(),
                         mCameraParameters.getPreviewFormat()
                 );
             }
 
             mCameraParameters.setPreviewSize(
-                    invertPreviewSizes ? getPreviewResolution().getHeight() : getPreviewResolution().getWidth(),
-                    invertPreviewSizes ? getPreviewResolution().getWidth() : getPreviewResolution().getHeight()
+                    invertPreviewSizes ? previewSize.getHeight() : previewSize.getWidth(),
+                    invertPreviewSizes ? previewSize.getWidth() : previewSize.getHeight()
             );
 
             final int[] previewFpsRange = selectPreviewFpsRange(mCamera, mRequestedFps);
@@ -935,8 +936,7 @@ public class Camera1 extends CameraImpl {
         //1、获取预览size比率
         final Set<AspectRatio> previewAspectRatios = new HashSet<>();
         for (Camera.Size size : previewSizes) {
-            AspectRatio previewRatio = AspectRatio.of(size.width, size.height);
-            previewAspectRatios.add(previewRatio);
+            previewAspectRatios.add(AspectRatio.of(size.width, size.height));
         }
         //2、获取拍照size比率
         final Set<AspectRatio> captureAspectRatios = new HashSet<>();
@@ -950,20 +950,29 @@ public class Camera1 extends CameraImpl {
                 commonPreviewAndCaptureRatios.add(aspectRatio);
             }
         }
-        //4、寻找与预览view比率最接近的比率
-        AspectRatio deviceRatio;
-        if (mPreview == null || mPreview.getWidth() == 0 || mPreview.getHeight() == 0) {
-            deviceRatio = AspectRatio.of(CameraKit.Internal.screenHeight, CameraKit.Internal.screenWidth);
-        } else {
-            deviceRatio = AspectRatio.of(mPreview.getHeight(), mPreview.getWidth());
+        //4、获取相同比率预览size
+        final List<Camera.Size> commonPreviewSizes = new ArrayList<>();
+        for (Camera.Size size : previewSizes) {
+            final AspectRatio ratio = AspectRatio.of(size.width, size.height);
+            if (commonPreviewAndCaptureRatios.contains(ratio)) {
+                commonPreviewSizes.add(size);
+            }
         }
-        AspectRatio closestRatio = commonPreviewAndCaptureRatios.first();
-        float min = Float.MAX_VALUE;
-        for (AspectRatio aspectRatio : commonPreviewAndCaptureRatios) {
-            final float currentMin = Math.abs(deviceRatio.toFloat() - aspectRatio.toFloat());
+        //5、寻找与预览view大小最接近的Camera.Size
+        int viewWidth = CameraKit.Internal.screenWidth;
+        int viewHeight = CameraKit.Internal.screenHeight;
+        if (mPreview != null && mPreview.getWidth() > 0 && mPreview.getHeight() > 0) {
+            viewWidth = mPreview.getWidth();
+            viewHeight = mPreview.getHeight();
+        }
+        AspectRatio closestRatio = commonPreviewAndCaptureRatios.last();
+        long min = Long.MAX_VALUE;
+        for (Camera.Size size : commonPreviewSizes) {
+            final long currentMin = (size.height - viewWidth) * (size.height - viewWidth) +
+                    (size.width - viewHeight) * (size.width - viewHeight);
             if (currentMin < min) {
                 min = currentMin;
-                closestRatio = aspectRatio;
+                closestRatio = AspectRatio.of(size.width, size.height);
             }
         }
         return closestRatio;
